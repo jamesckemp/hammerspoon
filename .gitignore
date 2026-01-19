@@ -1,0 +1,8 @@
+# Claude Code settings
+.claude/
+
+# Hammerspoon
+Spoons/
+
+# macOS
+.DS_Store
