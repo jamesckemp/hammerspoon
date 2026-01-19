@@ -4,9 +4,8 @@
 
 -- Configuration
 local EDGE_THRESHOLD = 5      -- Pixels from edge to trigger jump
-local CHECK_INTERVAL = 0.02   -- How often to check cursor position (seconds)
 local DEBUG = true            -- Enable verbose logging
-local JUMP_COOLDOWN = 0.05    -- Tiny cooldown to prevent double-jumps (50ms)
+local JUMP_COOLDOWN = 0       -- No cooldown (jump target is 10px inside, beyond edge threshold)
 
 -- Pre-computed data (populated at init)
 local displays = {}
@@ -313,9 +312,9 @@ end
 local function checkCursor()
     tickCount = tickCount + 1
 
-    -- Heartbeat every 5 seconds
-    if DEBUG and tickCount % 250 == 0 then
-        print(string.format("♥ Heartbeat: tick %d", tickCount))
+    -- Verbose debug: print every 100 events to confirm eventtap is firing
+    if DEBUG and tickCount % 100 == 0 then
+        print(string.format("♥ Eventtap event #%d", tickCount))
     end
 
     local currentPos = hs.mouse.absolutePosition()
@@ -353,7 +352,13 @@ local function checkCursor()
                     velocity.x, velocity.y))
             end
 
-            hs.mouse.absolutePosition({x = target.x, y = target.y})
+            -- Use synthetic mouse event instead of absolutePosition for smoother background operation
+            local moveEvent = hs.eventtap.event.newMouseEvent(
+                hs.eventtap.event.types.mouseMoved,
+                {x = target.x, y = target.y}
+            )
+            moveEvent:post()
+
             lastJumpTime = now
             lastPosition = {x = target.x, y = target.y}
             return
@@ -363,12 +368,13 @@ local function checkCursor()
     lastPosition = {x = currentX, y = currentY}
 end
 
--- Protected timer callback
+-- Protected callback (works for both timer and eventtap)
 local function safeCheckCursor()
     local ok, err = pcall(checkCursor)
     if not ok then
         print(string.format("ERROR in checkCursor: %s", tostring(err)))
     end
+    return false  -- For eventtap: pass the event through
 end
 
 -- Initialize: compute displays and jump zones
@@ -385,8 +391,8 @@ end
 
 -- Cleanup previous instance
 if smartCursorJump then
-    if smartCursorJump.timer then
-        smartCursorJump.timer:stop()
+    if smartCursorJump.eventtap then
+        smartCursorJump.eventtap:stop()
     end
     if smartCursorJump.screenWatcher then
         smartCursorJump.screenWatcher:stop()
@@ -395,15 +401,25 @@ end
 
 -- Initialize global state
 smartCursorJump = {
-    timer = nil,
+    eventtap = nil,
     screenWatcher = nil
 }
 
 -- Run initialization
 initialize()
 
--- Start timer
-smartCursorJump.timer = hs.timer.doEvery(CHECK_INTERVAL, safeCheckCursor)
+-- Start eventtap to monitor mouse movements (instant response, works in background)
+smartCursorJump.eventtap = hs.eventtap.new({
+    hs.eventtap.event.types.mouseMoved,
+    hs.eventtap.event.types.leftMouseDragged,
+    hs.eventtap.event.types.rightMouseDragged,
+    hs.eventtap.event.types.otherMouseDragged
+}, safeCheckCursor)
+smartCursorJump.eventtap:start()
+
+if DEBUG then
+    print("  Eventtap started: " .. tostring(smartCursorJump.eventtap:isEnabled()))
+end
 
 -- Watch for display changes
 smartCursorJump.screenWatcher = hs.screen.watcher.new(onScreensChanged)
@@ -411,11 +427,10 @@ smartCursorJump.screenWatcher:start()
 
 -- Startup message
 print("=====================================")
-print("Smart Cursor Jump loaded (instant mode)")
+print("Smart Cursor Jump loaded (eventtap mode)")
 print(string.format("  Edge threshold: %dpx", EDGE_THRESHOLD))
-print(string.format("  Check interval: %.0fms", CHECK_INTERVAL * 1000))
-print(string.format("  Jump cooldown: %.0fms", JUMP_COOLDOWN * 1000))
 print(string.format("  Debug mode: %s", DEBUG and "ON" or "OFF"))
+print("  Mode: eventtap (mouseMoved + drag events)")
 print("  Directional intent: enabled (velocity-based)")
 print("  Detected displays:")
 for _, display in ipairs(displays) do
