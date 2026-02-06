@@ -4,6 +4,9 @@
 -- Smart Cursor Jump - Move cursor intelligently between misaligned displays
 require("smart-cursor-jump")
 
+-- Smart Fill Screen - Auto-maximize windows when moved to a different display
+require("smart-fill-screen")
+
 -- Add more scripts below as you create them:
 -- require("window-management")
 -- require("hotkeys")

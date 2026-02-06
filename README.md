@@ -23,6 +23,23 @@ local EDGE_THRESHOLD = 5  -- Pixels from edge to trigger jump
 local DEBUG = true        -- Enable console logging
 ```
 
+### Smart Fill Screen
+
+Automatically maximizes windows when moved to a different display.
+
+When you drag a window from one monitor to another, it instantly fills the destination screen. Windows moved within the same display are unaffected.
+
+**How it works:**
+- Tracks each window's current screen using `hs.window.filter`
+- On `windowMoved`, compares the window's screen against its last known screen
+- If the screen changed, fills the window to the new screen's frame after a brief settle delay
+- Cleans up tracking when windows are destroyed
+
+**Configuration** (in `smart-fill-screen.lua`):
+```lua
+local DEBUG = true  -- Enable console logging
+```
+
 ## Installation
 
 1. Install [Hammerspoon](https://www.hammerspoon.org/)
