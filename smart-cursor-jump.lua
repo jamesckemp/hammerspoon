@@ -23,7 +23,7 @@ local function getDisplays()
     local result = {}
 
     for i, screen in ipairs(screens) do
-        local frame = screen:frame()
+        local frame = screen:fullFrame()
         local display = {
             id = i,
             x = frame.x,
